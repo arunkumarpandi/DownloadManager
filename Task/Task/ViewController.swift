@@ -10,26 +10,17 @@ import Alamofire
 import AVFoundation
 import AVKit
 
-extension ViewController: UIViewControllerRestoration {
-    static func viewController(withRestorationIdentifierPath identifierComponents: [String], coder: NSCoder) -> UIViewController? {
-        let vc = ViewController()
-        return vc
-    }
-}
+
 
 class ViewController: UIViewController,URLSessionDataDelegate {
-    
-    
     
     @IBOutlet var progressLabel : UILabel!
     @IBOutlet var playButton : UIButton!
     var isDownloading : Bool = false
-    var startDownloading : Bool = false
+    var isOffline : Bool = false
     
     var downloadTimer: Timer?
     var session : URLSession!
-    
-    var request: Alamofire.Request?
     
     let byteFormatter: ByteCountFormatter = {
             let formatter = ByteCountFormatter()
@@ -41,40 +32,57 @@ class ViewController: UIViewController,URLSessionDataDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
-     
-        progressLabel.text = fileIsExist() ? "100 %" : "0 %"
+        progressLabel.text = ""
+//        progressLabel.text = fileIsExist() ? "100 %" : "0 %"
         playButton.setTitle(fileIsExist() ? "Play" : "Download", for: .normal)
         
     }
     
     func fileIsExist() -> Bool {
+        //let documnets = NSHomeDirectory() + "/Documents/" + "task" + ".mp4"
         var isExist = false
-        // Get the document directory url
-        let documentsUrl =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        do {
-            // Get the directory contents urls (including subfolders urls)
-            let directoryContents = try FileManager.default.contentsOfDirectory(at: documentsUrl, includingPropertiesForKeys: nil)
-            isExist = directoryContents.count > 0 ? true : false
-        } catch {
-            print(error)
-        }
+        let path = NSHomeDirectory() + "/Documents/"
+            let url = NSURL(fileURLWithPath: path)
+            if let pathComponent = url.appendingPathComponent("task.mp4") {
+                let filePath = pathComponent.path
+                let fileManager = FileManager.default
+                if fileManager.fileExists(atPath: filePath) {
+                    print("FILE AVAILABLE")
+                    isExist = true
+                } else {
+                    print("FILE NOT AVAILABLE")
+                }
+            } else {
+                print("FILE PATH NOT AVAILABLE")
+            }
+        
+//        // Get the document directory url
+//        let documentsUrl =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+//        do {
+//            // Get the directory contents urls (including subfolders urls)
+//            let directoryContents = try FileManager.default.contentsOfDirectory(at: documentsUrl, includingPropertiesForKeys: nil)
+//            isExist = directoryContents.count > 0 ? true : false
+//        } catch {
+//            print(error)
+//        }
         return isExist
     }
     
     func getFileURL() -> String {
-        var fileURL : URL?
-        // Get the document directory url
-        let documentsUrl =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        do {
-            // Get the directory contents urls (including subfolders urls)
-            let directoryContents = try FileManager.default.contentsOfDirectory(at: documentsUrl, includingPropertiesForKeys: nil)
-            if directoryContents.count > 0 {
-                fileURL = directoryContents[0]
-            }
-        } catch {
-            print(error)
-        }
-        return fileURL?.absoluteString ?? ""
+        let documnets = NSHomeDirectory() + "/Documents/" + "task" + ".mp4"
+//        var fileURL : URL?
+//        // Get the document directory url
+//        let documentsUrl =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+//        do {
+//            // Get the directory contents urls (including subfolders urls)
+//            let directoryContents = try FileManager.default.contentsOfDirectory(at: documentsUrl, includingPropertiesForKeys: nil)
+//            if directoryContents.count > 0 {
+//                fileURL = directoryContents[0]
+//            }
+//        } catch {
+//            print(error)
+//        }
+        return documnets
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -107,9 +115,12 @@ class ViewController: UIViewController,URLSessionDataDelegate {
     
     @objc func checkNetwork() {
         if Reachability.isConnectedToNetwork() {
-            request?.resume()
+            if(isOffline) {
+                download()
+                isOffline = false
+            }
         } else {
-            request?.suspend()
+            isOffline = true
         }
     }
     
@@ -217,12 +228,8 @@ extension ViewController : URLSessionDownloadDelegate {
         //Create a File Manager
         let fileManager = FileManager.default
         try! fileManager.moveItem(atPath: locationPath, toPath: documnets)
-        
-        UserDefaults.standard.removeObject(forKey: "downloadedSize")
-        UserDefaults.standard.removeObject(forKey: "fileSize")
-        print("location \(location.lastPathComponent)")
+        playButton.setTitle(fileIsExist() ? "Play" : "Download", for: .normal)
         playVideo(filePath: documnets)
-        
         downloadTimer?.invalidate()
     }
     
@@ -249,8 +256,6 @@ extension ViewController : URLSessionDownloadDelegate {
                     return
                 }
                 appDelegate.fileData = resumeData
-//                UserDefaults.standard.set(self.fileData, forKey: "file")
-//                UserDefaults.standard.synchronize()
             })
         }
         
@@ -284,8 +289,5 @@ extension ViewController : URLSessionDownloadDelegate {
             backgroundCompletionHandler()
         }
     }
-    
-    
-    
 }
 
